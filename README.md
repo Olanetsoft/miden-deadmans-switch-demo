@@ -10,7 +10,7 @@ Privacy-preserving inheritance on the blockchain — because your crypto shouldn
 
 A dead man's switch implementation showcasing Miden's revolutionary privacy features. Unlike traditional blockchains where inheritance contracts are publicly visible, this demonstrates how Miden keeps everything private until activation.
 
-**[Try the Live Demo →](https://miden-deadmans-switch.vercel.app)**
+**[Try the Live Demo →](https://miden-deadmans-switch-demo.vercel.app)**
 
 ## ✨ Features
 
@@ -39,7 +39,7 @@ miden-deadmans-switch/
 ## 🏃‍♂️ Quick Start
 
 ### Option 1: Visit Live Demo
-[https://miden-deadmans-switch.vercel.app](https://miden-deadmans-switch.vercel.app)
+[https://miden-deadmans-switch-demo.vercel.app](https://miden-deadmans-switch-demo.vercel.app)
 
 ### Option 2: Run Locally
 
