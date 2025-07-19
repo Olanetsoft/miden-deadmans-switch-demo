@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "name": "miden-deadmans-switch-demo",
+  "builds": [
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/demo",
+      "dest": "/deadmans-switch.html"
+    }
+  ]
+}

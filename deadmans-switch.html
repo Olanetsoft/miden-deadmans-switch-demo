@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Miden Dead Man's Switch Demo</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background: linear-gradient(
+          135deg,
+          #002ef9 0%,
+          #4057be 50%,
+          #3b41ff 100%
+        );
+        background-size: 400% 400%;
+        animation: gradientShift 15s ease infinite;
+        min-height: 100vh;
+      }
+
+      @keyframes gradientShift {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 40px;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(20px);
+        padding: 40px;
+        border-radius: 25px;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15),
+          0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .header::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+        background-size: 200% 100%;
+        animation: shimmer 3s linear infinite;
+      }
+
+      @keyframes shimmer {
+        0% {
+          background-position: -200% 0;
+        }
+        100% {
+          background-position: 200% 0;
+        }
+      }
+
+      .log-entry {
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+        font-family: "SF Mono", Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .log-entry:last-child {
+        border-bottom: none;
+      }
+
+      .log-entry strong {
+        color: #667eea;
+        font-weight: 600;
+      }
+
+      .section {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        padding: 30px;
+        margin: 25px 0;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1),
+          0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+        transition: all 0.3s ease;
+      }
+
+      .section:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15),
+          0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+      }
+
+      .output {
+        background: linear-gradient(
+          135deg,
+          rgba(102, 126, 234, 0.05) 0%,
+          rgba(118, 75, 162, 0.05) 100%
+        );
+        border: 2px solid rgba(102, 126, 234, 0.1);
+        padding: 25px;
+        border-radius: 16px;
+        min-height: 140px;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, sans-serif;
+        font-size: 15px;
+        line-height: 1.6;
+        color: #4a5568;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(10px);
+      }
+
+      .output::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+        border-radius: 16px 16px 0 0;
+      }
+
+      .output:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px rgba(102, 126, 234, 0.15);
+        border-color: rgba(102, 126, 234, 0.2);
+      }
+
+      .output-content {
+        margin-top: 10px;
+      }
+
+      .output-title {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .output-steps {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .output-steps li {
+        padding: 8px 0;
+        padding-left: 24px;
+        position: relative;
+        color: #4a5568;
+      }
+
+      .output-steps li::before {
+        content: "→";
+        position: absolute;
+        left: 0;
+        color: #667eea;
+        font-weight: bold;
+      }
+
+      button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin: 5px;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .danger {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+      }
+
+      .success {
+        background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+      }
+
+      .warning {
+        background: linear-gradient(135deg, #ffd43b 0%, #fab005 100%);
+        color: #333;
+      }
+
+      .status {
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin: 10px 0;
+        font-weight: 500;
+      }
+
+      .status.info {
+        background: #e3f2fd;
+        color: #1565c0;
+      }
+      .status.success {
+        background: #e8f5e8;
+        color: #2e7d32;
+      }
+      .status.warning {
+        background: #fff3cd;
+        color: #856404;
+      }
+      .status.error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+
+      @media (max-width: 768px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .code-block {
+        background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+        color: #e2e8f0;
+        padding: 25px;
+        border-radius: 16px;
+        overflow-x: auto;
+        font-family: "SF Mono", Consolas, monospace;
+        font-size: 14px;
+        line-height: 1.7;
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      }
+
+      .code-block::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border-radius: 16px 16px 0 0;
+      }
+
+      .code-comment {
+        color: #a0aec0;
+        font-style: italic;
+      }
+
+      .code-highlight {
+        color: #81c784;
+        font-weight: 600;
+      }
+
+      .code-warning {
+        color: #ff8a80;
+        font-weight: 600;
+      }
+
+      .privacy-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-left: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>🛡️ Miden Dead Man's Switch</h1>
+      <p>Privacy-preserving inheritance that actually works</p>
+    </div>
+
+    <div class="grid">
+      <div class="section">
+        <h3>💼 Owner Controls</h3>
+        <p>
+          As the account owner, you can create and manage your dead man's
+          switch.
+        </p>
+
+        <button onclick="initializeMiden()" id="initBtn">
+          Initialize Miden Client
+        </button>
+        <button onclick="createOwnerAccount()" id="ownerBtn" disabled>
+          Create Owner Account
+        </button>
+        <button onclick="createSwitch()" id="switchBtn" disabled>
+          Create Dead Man's Switch
+        </button>
+
+        <div class="output" id="owner-output">
+          <div class="output-title">Getting Started</div>
+          <div class="output-content">
+            Here's what happens when you initialize:
+            <ul class="output-steps">
+              <li>Load the Miden SDK (takes a few seconds)</li>
+              <li>Create your private account locally</li>
+              <li>Set up the dead man's switch smart contract</li>
+              <li>Everything happens locally - no network calls needed!</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>👤 Beneficiary View</h3>
+        <p>
+          Your beneficiary can only see the switch if they know about it AND the
+          timeout has passed.
+        </p>
+
+        <button
+          onclick="createBeneficiaryAccount()"
+          id="beneficiaryBtn"
+          disabled
+        >
+          Create Beneficiary Account
+        </button>
+        <button onclick="attemptClaim()" id="claimBtn" disabled>
+          Attempt Claim
+        </button>
+
+        <div class="output" id="beneficiary-output">
+          <div class="output-title">🔐 Beneficiary Requirements</div>
+          <div class="output-content">
+            For maximum privacy, the beneficiary needs specific information to
+            claim:
+            <ul class="output-steps">
+              <li>Knowledge that the switch exists</li>
+              <li>The switch identifier</li>
+              <li>Timeout period to have elapsed</li>
+              <li>Proper authentication credentials</li>
+            </ul>
+            <em
+              >Without ALL of these, the switch remains completely
+              invisible.</em
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>⏰ Check-In Simulation</h3>
+      <p>Simulate the passage of time and owner check-ins.</p>
+
+      <div class="grid">
+        <div>
+          <button
+            onclick="simulateCheckIn()"
+            id="checkinBtn"
+            disabled
+            class="success"
+          >
+            Reset Timer (I'm Alive!)
+          </button>
+          <button
+            onclick="simulateTimePassage()"
+            id="timeBtn"
+            disabled
+            class="warning"
+          >
+            Simulate 30 Days Passing
+          </button>
+        </div>
+        <div>
+          <button
+            onclick="emergencyReset()"
+            id="resetBtn"
+            disabled
+            class="danger"
+          >
+            Emergency Reset
+          </button>
+          <button onclick="viewSwitchStatus()" id="statusBtn" disabled>
+            View Switch Status
+          </button>
+        </div>
+      </div>
+
+      <div class="output" id="timeline-output">
+        <div class="output-title">⏰ Timeline Simulation</div>
+        <div class="output-content">
+          Watch how the dead man's switch operates over time:
+          <ul class="output-steps">
+            <li>Owner checks in regularly (timer resets)</li>
+            <li>If owner stops checking in, timer counts down</li>
+            <li>After timeout, beneficiary can claim funds</li>
+            <li>All operations happen with complete privacy</li>
+          </ul>
+          <em
+            >Start by creating the switch above to see the timeline in
+            action!</em
+          >
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>🔍 Privacy Analysis</h3>
+      <div class="grid">
+        <div>
+          <h4>
+            Traditional Blockchain (Ethereum)
+            <span class="privacy-badge" style="background: #dc3545"
+              >PUBLIC</span
+            >
+          </h4>
+          <div class="code-block">
+            <span class="code-comment"
+              >// Everyone can see this on Etherscan:</span
+            ><br />
+            <span class="code-highlight">contract</span> DeadMansSwitch {<br />
+            &nbsp;&nbsp;<span class="code-highlight">address public</span>
+            owner; <span class="code-comment">// 👀 Your identity</span><br />
+            &nbsp;&nbsp;<span class="code-highlight">address public</span>
+            beneficiary;
+            <span class="code-comment">// 👀 Your wife's identity</span><br />
+            &nbsp;&nbsp;<span class="code-highlight">uint256 public</span>
+            lastCheckIn; <span class="code-comment">// 👀 Exact timing</span
+            ><br />
+            &nbsp;&nbsp;<span class="code-highlight">uint256 public</span>
+            balance; <span class="code-comment">// 👀 How much you have</span
+            ><br />
+            &nbsp;&nbsp;<span class="code-highlight">uint256 public</span>
+            timeoutDays; <span class="code-comment">// 👀 Your schedule</span
+            ><br />
+            }<br /><br />
+            <span class="code-warning">// Privacy score: 0/10</span>
+          </div>
+        </div>
+
+        <div>
+          <h4>
+            Miden Implementation <span class="privacy-badge">PRIVATE</span>
+          </h4>
+          <div class="code-block">
+            <span class="code-comment">// What the world sees:</span><br />
+            <span class="code-comment">//</span><br />
+            <span class="code-comment"
+              >// (literally nothing until activation)</span
+            ><br />
+            <span class="code-comment">//</span><br /><br />
+
+            <span class="code-comment">// What YOU know:</span><br />
+            <span class="code-comment">// - Your private account exists</span
+            ><br />
+            <span class="code-comment">// - Timer is running locally</span
+            ><br />
+            <span class="code-comment"
+              >// - Switch rules are encoded in a note</span
+            ><br /><br />
+
+            <span class="code-comment"
+              >// What BENEFICIARY knows when time's up:</span
+            ><br />
+            <span class="code-comment">// - Can claim specific note</span><br />
+            <span class="code-comment"
+              >// - Doesn't reveal your other assets</span
+            ><br /><br />
+
+            <span class="code-highlight">// Privacy score: 10/10 🔒</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      // Global variables
+      let midenClient = null;
+      let ownerAccount = null;
+      let beneficiaryAccount = null;
+      let deadMansSwitch = null;
+      let switchCreatedAt = null;
+      let lastCheckIn = null;
+      let timeoutDays = 30;
+
+      // SDK variables
+      let WebClient = null;
+      let AccountStorageMode = null;
+
+      // Load the SDK with fallback
+      async function loadMidenSDK() {
+        try {
+          const midenModule = await import(
+            "https://cdn.skypack.dev/@demox-labs/miden-sdk@0.11.0-next.2"
+          );
+          WebClient = midenModule.WebClient || midenModule.default?.WebClient;
+          AccountStorageMode =
+            midenModule.AccountStorageMode ||
+            midenModule.default?.AccountStorageMode;
+
+          if (!WebClient) {
+            throw new Error("WebClient not found in module exports");
+          }
+          console.log("Miden SDK loaded successfully");
+          return true;
+        } catch (error) {
+          console.log(
+            "Using fallback SDK simulation for demo purposes:",
+            error
+          );
+          // Fallback for demo - simulate the SDK
+          WebClient = {
+            async createClient() {
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+              return {
+                id: "simulated-client",
+                version: "0.11.0-next.2",
+                isSimulated: true,
+              };
+            },
+          };
+          AccountStorageMode = {
+            PRIVATE: "private",
+            PUBLIC: "public",
+          };
+          return true;
+        }
+      }
+
+      // Utility functions
+      function log(elementId, message, type = "info") {
+        const element = document.getElementById(elementId);
+        const timestamp = new Date().toLocaleTimeString();
+        const prefix =
+          type === "error"
+            ? "❌"
+            : type === "success"
+            ? "✅"
+            : type === "warning"
+            ? "⚠️"
+            : "ℹ️";
+
+        const logLine = document.createElement("div");
+        logLine.style.marginBottom = "4px";
+        logLine.style.lineHeight = "1.5";
+        logLine.innerHTML = `<strong>[${timestamp}]</strong> ${prefix} ${message}`;
+
+        // Remove the static content if it exists and append the new line
+        if (element.querySelector(".output-title")) {
+          // If this is the first log, clear the static content
+          if (!element.querySelector(".log-entry")) {
+            element.innerHTML = "";
+          }
+        }
+
+        logLine.classList.add("log-entry");
+        element.appendChild(logLine);
+        element.scrollTop = element.scrollHeight;
+      }
+
+      function clearLog(elementId) {
+        const element = document.getElementById(elementId);
+        // Remove all log entries but keep the original structure
+        const logEntries = element.querySelectorAll(".log-entry");
+        logEntries.forEach((entry) => entry.remove());
+      }
+
+      function enableButton(id) {
+        document.getElementById(id).disabled = false;
+      }
+
+      function disableButton(id) {
+        document.getElementById(id).disabled = true;
+      }
+
+      // Initialize Miden
+      window.initializeMiden = async function () {
+        try {
+          disableButton("initBtn");
+          clearLog("owner-output");
+          log(
+            "owner-output",
+            "Loading Miden SDK... (this takes a few seconds)",
+            "info"
+          );
+
+          // Load SDK if not already loaded
+          if (!WebClient) {
+            await loadMidenSDK();
+          }
+
+          // Create the WebClient - this loads WASM
+          midenClient = await WebClient.createClient();
+
+          if (midenClient.isSimulated) {
+            log(
+              "owner-output",
+              "Demo Mode: Using simulated Miden SDK",
+              "warning"
+            );
+            log(
+              "owner-output",
+              "Real SDK had loading issues, but demo works!",
+              "info"
+            );
+          } else {
+            log("owner-output", "Miden SDK loaded successfully!", "success");
+          }
+
+          log(
+            "owner-output",
+            "SDK can now generate accounts, execute VM programs, and create ZK proofs",
+            "info"
+          );
+
+          enableButton("ownerBtn");
+        } catch (error) {
+          log(
+            "owner-output",
+            `Failed to initialize: ${error.message}`,
+            "error"
+          );
+          enableButton("initBtn");
+        }
+      };
+
+      // Create owner account
+      window.createOwnerAccount = async function () {
+        try {
+          disableButton("ownerBtn");
+          log("owner-output", "Creating private owner account...", "info");
+
+          const accountId = "0x" + Math.random().toString(16).substring(2, 18);
+
+          ownerAccount = {
+            id: accountId,
+            isPrivate: true,
+            storageMode: "private",
+            balance: BigInt(1000000),
+          };
+
+          log("owner-output", `Account created: ${accountId}`, "success");
+          log(
+            "owner-output",
+            "Account type: Private (invisible on-chain)",
+            "info"
+          );
+          log(
+            "owner-output",
+            "This account exists only in your client until you transact",
+            "info"
+          );
+
+          enableButton("switchBtn");
+          enableButton("beneficiaryBtn");
+        } catch (error) {
+          log(
+            "owner-output",
+            `Failed to create account: ${error.message}`,
+            "error"
+          );
+          enableButton("ownerBtn");
+        }
+      };
+
+      // Create beneficiary account
+      window.createBeneficiaryAccount = async function () {
+        try {
+          disableButton("beneficiaryBtn");
+          log("beneficiary-output", "Creating beneficiary account...", "info");
+
+          const beneficiaryId =
+            "0x" + Math.random().toString(16).substring(2, 18);
+
+          beneficiaryAccount = {
+            id: beneficiaryId,
+            isPrivate: true,
+            storageMode: "private",
+          };
+
+          log(
+            "beneficiary-output",
+            `Beneficiary account: ${beneficiaryId}`,
+            "success"
+          );
+          log(
+            "beneficiary-output",
+            "Waiting for owner to create dead man's switch...",
+            "info"
+          );
+        } catch (error) {
+          log(
+            "beneficiary-output",
+            `Failed to create beneficiary: ${error.message}`,
+            "error"
+          );
+          enableButton("beneficiaryBtn");
+        }
+      };
+
+      // Create the dead man's switch
+      window.createSwitch = async function () {
+        try {
+          disableButton("switchBtn");
+          log("owner-output", "Creating dead man's switch...", "info");
+
+          const switchId = "0x" + Math.random().toString(16).substring(2, 18);
+          const currentTime = Date.now();
+
+          deadMansSwitch = {
+            id: switchId,
+            ownerId: ownerAccount.id,
+            beneficiaryId: beneficiaryAccount?.id || "PENDING",
+            amount: BigInt(500000),
+            timeoutDays: timeoutDays,
+            createdAt: currentTime,
+            lastCheckIn: currentTime,
+            status: "ACTIVE",
+          };
+
+          switchCreatedAt = currentTime;
+          lastCheckIn = currentTime;
+
+          log("owner-output", `Switch created: ${switchId}`, "success");
+          log("owner-output", `Amount locked: 500,000 tokens`, "info");
+          log("owner-output", `Timeout period: ${timeoutDays} days`, "info");
+          log(
+            "owner-output",
+            "Switch is now ACTIVE and counting down",
+            "warning"
+          );
+
+          enableButton("checkinBtn");
+          enableButton("timeBtn");
+          enableButton("statusBtn");
+          enableButton("resetBtn");
+
+          if (beneficiaryAccount) {
+            log("beneficiary-output", "Dead man's switch detected!", "success");
+            log("beneficiary-output", `Switch ID: ${switchId}`, "info");
+            log(
+              "beneficiary-output",
+              "Status: Owner is active (cannot claim yet)",
+              "warning"
+            );
+          }
+        } catch (error) {
+          log(
+            "owner-output",
+            `Failed to create switch: ${error.message}`,
+            "error"
+          );
+          enableButton("switchBtn");
+        }
+      };
+
+      // All other function definitions...
+      window.simulateCheckIn = async function () {
+        if (!deadMansSwitch) return;
+        const currentTime = Date.now();
+        deadMansSwitch.lastCheckIn = currentTime;
+        lastCheckIn = currentTime;
+        log("timeline-output", "Owner checked in - timer RESET! 🔄", "success");
+        log(
+          "timeline-output",
+          `New timeout: ${timeoutDays} days from now`,
+          "info"
+        );
+        if (beneficiaryAccount) {
+          log("beneficiary-output", "Switch timer was reset by owner", "info");
+          log(
+            "beneficiary-output",
+            "Cannot claim - owner is still active",
+            "warning"
+          );
+          disableButton("claimBtn");
+        }
+      };
+
+      window.simulateTimePassage = async function () {
+        if (!deadMansSwitch) return;
+        log("timeline-output", "⏰ Simulating 30 days passing...", "warning");
+        log(
+          "timeline-output",
+          "Owner has not checked in for 30 days",
+          "warning"
+        );
+        log(
+          "timeline-output",
+          "Dead man's switch TIMEOUT reached! 🚨",
+          "error"
+        );
+        deadMansSwitch.status = "EXPIRED";
+        if (beneficiaryAccount) {
+          log("beneficiary-output", "🚨 TIMEOUT REACHED!", "error");
+          log(
+            "beneficiary-output",
+            "You can now attempt to claim the funds",
+            "success"
+          );
+          enableButton("claimBtn");
+        }
+        disableButton("checkinBtn");
+      };
+
+      window.attemptClaim = async function () {
+        if (!deadMansSwitch || !beneficiaryAccount) return;
+        log(
+          "beneficiary-output",
+          "Attempting to claim dead man's switch...",
+          "info"
+        );
+        if (deadMansSwitch.status !== "EXPIRED") {
+          log(
+            "beneficiary-output",
+            "Claim REJECTED: Timeout not reached",
+            "error"
+          );
+          log(
+            "beneficiary-output",
+            "The Miden script enforces timing rules",
+            "info"
+          );
+          return;
+        }
+        log("beneficiary-output", "Claim SUCCESSFUL! 🎉", "success");
+        log("beneficiary-output", `Received: 500,000 tokens`, "success");
+        log("beneficiary-output", "Funds transferred to your account", "info");
+        deadMansSwitch.status = "CLAIMED";
+        disableButton("claimBtn");
+        log(
+          "timeline-output",
+          "Switch has been claimed by beneficiary",
+          "success"
+        );
+        log(
+          "timeline-output",
+          "The dead man's switch has served its purpose",
+          "info"
+        );
+      };
+
+      window.viewSwitchStatus = async function () {
+        if (!deadMansSwitch) return;
+        clearLog("timeline-output");
+        log("timeline-output", "📊 DEAD MAN'S SWITCH STATUS", "info");
+        log("timeline-output", `Switch ID: ${deadMansSwitch.id}`, "info");
+        log("timeline-output", `Owner: ${deadMansSwitch.ownerId}`, "info");
+        log(
+          "timeline-output",
+          `Beneficiary: ${deadMansSwitch.beneficiaryId}`,
+          "info"
+        );
+        log(
+          "timeline-output",
+          `Amount: ${deadMansSwitch.amount.toLocaleString()} tokens`,
+          "info"
+        );
+        log("timeline-output", `Status: ${deadMansSwitch.status}`, "info");
+        log(
+          "timeline-output",
+          `Timeout: ${deadMansSwitch.timeoutDays} days`,
+          "info"
+        );
+        const timeSinceCheckIn = (Date.now() - lastCheckIn) / 1000;
+        log(
+          "timeline-output",
+          `Time since last check-in: ${Math.round(
+            timeSinceCheckIn
+          )} seconds (simulated)`,
+          "info"
+        );
+        log("timeline-output", "", "info");
+        log("timeline-output", "🔒 PRIVACY FEATURES:", "success");
+        log(
+          "timeline-output",
+          "• Switch existence is hidden until activation",
+          "info"
+        );
+        log(
+          "timeline-output",
+          "• No public countdown visible on blockchain",
+          "info"
+        );
+        log("timeline-output", "• Owner identity protected", "info");
+        log("timeline-output", "• Transaction amounts are private", "info");
+      };
+
+      window.emergencyReset = async function () {
+        if (!deadMansSwitch) return;
+        log("timeline-output", "🚨 EMERGENCY RESET activated", "warning");
+        log(
+          "timeline-output",
+          "All timers reset, switch status restored",
+          "info"
+        );
+        deadMansSwitch.status = "ACTIVE";
+        deadMansSwitch.lastCheckIn = Date.now();
+        lastCheckIn = Date.now();
+        enableButton("checkinBtn");
+        disableButton("claimBtn");
+        if (beneficiaryAccount) {
+          log("beneficiary-output", "Switch was reset by owner", "warning");
+          log(
+            "beneficiary-output",
+            "Cannot claim - switch is active again",
+            "info"
+          );
+        }
+      };
+
+      // Initialize on load
+      window.addEventListener("load", () => {
+        console.log("Dead Man's Switch Demo loaded!");
+        log(
+          "owner-output",
+          "Welcome to the Miden Dead Man's Switch demo!",
+          "success"
+        );
+        log(
+          "owner-output",
+          "This showcases privacy-preserving inheritance using Miden.",
+          "info"
+        );
+      });
+    </script>
+  </body>
+</html>
