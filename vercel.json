@@ -3,7 +3,7 @@
   "name": "miden-deadmans-switch-demo",
   "builds": [
     {
-      "src": "index.html",
+      "src": "*.html",
       "use": "@vercel/static"
     }
   ],
@@ -14,6 +14,10 @@
     },
     {
       "src": "/demo",
+      "dest": "/deadmans-switch.html"
+    },
+    {
+      "src": "/deadmans-switch.html",
       "dest": "/deadmans-switch.html"
     }
   ]
