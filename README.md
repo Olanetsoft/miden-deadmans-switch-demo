@@ -94,7 +94,7 @@ await checkIn(deadMansSwitch.id);
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details
+MIT License
 
 ## 🙏 Acknowledgments
 
