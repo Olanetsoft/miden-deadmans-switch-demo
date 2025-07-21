@@ -32,6 +32,7 @@ A dead man's switch implementation showcasing Miden's revolutionary privacy feat
 miden-deadmans-switch/
 ├── index.html              # Landing page
 ├── deadmans-switch.html    # Interactive demo
+├── deadmans-switch.ts
 ├── package.json            # Dependencies
 └── README.md              # You are here
 ```
